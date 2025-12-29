@@ -23,3 +23,8 @@ export const jobSchema = z.object({
     jobType : z.enum(["FULL_TIME", "PART_TIME", "REMOTE", "CONTRACT"]),
     companyName : z.string()
 })
+
+// Application Related
+export const applicationSchema = z.object({
+    status : z.enum(["PENDING", "ACCEPTED", "REJECTED"])
+})

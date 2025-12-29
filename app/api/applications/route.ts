@@ -1,40 +1,44 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { jobSchema } from "@/lib/zod";
 import verifyToken from "@/lib/verifyToken";
 
 
+// this is for getting all applications
 export async function GET(request : Request) {
     try {
-        const allJobs = await prisma.job.findMany({
+        const application = await prisma.application.findMany({
             select : {
                 id : true,
-                title : true,
-                description : true,
-                location : true,
-                jobType : true,
-                companyName : true,
+                status : true,
                 created : true,
                 user : {
                     select : {
                         id : true,
                         name : true,
                     }
+                },
+                job : {
+                    select : {
+                        title : true,
+                        location : true,
+                        jobType : true,
+                        companyName : true
+                    }
                 }
             }
         });
 
-        if(!allJobs) {
+        if(!application) {
             return NextResponse.json({
-                error : "No jobs found"
+                error : "No applications found"
             }, {
                 status : 404
             })
         }
 
         return NextResponse.json({
-            message : "Jobs retrieved successfully",
-            data : allJobs
+            message : "Applications retrieved successfully",
+            data : application
         }, {
             status : 200
         })
@@ -48,20 +52,10 @@ export async function GET(request : Request) {
     }
 }
 
-export async function POST(request : Request) {
+// TODO
+export async function POST(request : Request, { params } : { params : { jobId : string } }) {
     try {
-        const data = await request.json();
-
-        const { title, description, requirements, location, jobType, companyName } = jobSchema.parse(data);
-
-        if(!title || !description || !requirements || !location || !jobType || !companyName) {
-            return NextResponse.json({
-                error : "Missing required fields"
-            }, {
-                status : 400
-            })
-        }
-
+        
         const token = request.headers.get("authorization");
 
         if(!token) {
@@ -102,53 +96,36 @@ export async function POST(request : Request) {
                 status : 401
             })
         }
-
-        const job = await prisma.job.create({
+        
+        const application = await prisma.application.create({
             data : {
-                title : title,
-                description : description,
-                requirements : requirements,
-                location : location,
-                jobType : jobType,
-                companyName : companyName,
-                userid : Number(user.id)
+                status : "PENDING",
+                userId : Number(user.id),
+                jobId : Number(params.jobId)
             }
         })
 
-        // here update in user 
+        // update user
         await prisma.user.update({
             where : {
                 id : userId
             },
 
-            data :{
-                jobs : {
+            data : {
+                applications : {
                     connect : {
-                        id : job.id
+                        id : application.id
                     }
                 }
             }
-        })
+        });
 
         return NextResponse.json({
-            message : "Job created successfully",
-            data : {
-                id : job.id,
-                title : job.title,
-                description : job.description,
-                requirements : job.requirements,
-                location : job.location,
-                jobType : job.jobType,
-                companyName : job.companyName,
-                created : job.created,
-                user : {
-                    id : user.id,
-                    name : user.name
-                }
-            }
+            message : "Application created successfully",
+            data : application
         })
     }
-    catch (error){
+    catch(error){
         return NextResponse.json({
             error : error
         }, {
